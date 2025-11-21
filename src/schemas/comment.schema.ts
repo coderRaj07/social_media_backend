@@ -1,22 +1,20 @@
-// src/schemas/comment.schema.ts
-import { object, string, TypeOf } from 'zod';
+import { z } from 'zod';
 
-export const createCommentSchema = object({
-  body: object({
-    text: string({
-      required_error: 'Comment text is required',
-    }),
-    postId: string({
-      required_error: 'postId is required',
-    }),
+// Create Comment
+export const createCommentSchema = z.object({
+  body: z.object({
+    text: z.string().nonempty({ message: 'Comment text is required' }),
+    postId: z.string().nonempty({ message: 'postId is required' }),
   }),
 });
 
-export const deleteCommentSchema = object({
-  params: object({
-    commentId: string(),
+// Delete Comment
+export const deleteCommentSchema = z.object({
+  params: z.object({
+    commentId: z.string().nonempty({ message: 'commentId is required' }),
   }),
 });
 
-export type CreateCommentInput = TypeOf<typeof createCommentSchema>['body'];
-export type DeleteCommentInput = TypeOf<typeof deleteCommentSchema>['params'];
+// Types
+export type CreateCommentInput = z.infer<typeof createCommentSchema>['body'];
+export type DeleteCommentInput = z.infer<typeof deleteCommentSchema>['params'];

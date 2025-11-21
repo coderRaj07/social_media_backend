@@ -1,50 +1,40 @@
-import { object, string, TypeOf, z } from 'zod';
+import { z } from 'zod';
 import { RoleEnumType } from '../entities/user.entity';
 
-export const createUserSchema = object({
-  body: object({
-    name: string({
-      required_error: 'Name is required',
-    }),
-    email: string({
-      required_error: 'Email address is required',
-    }).email('Invalid email address'),
-    password: string({
-      required_error: 'Password is required',
-    })
+export const createUserSchema = z.object({
+  body: z.object({
+    name: z.string().nonempty('Name is required'),
+    email: z.email('Invalid email address'),
+    password: z
+      .string()
       .min(8, 'Password must be more than 8 characters')
       .max(32, 'Password must be less than 32 characters'),
-    passwordConfirm: string({
-      required_error: 'Please confirm your password',
-    }),
-    role: z.optional(z.nativeEnum(RoleEnumType)),
+    passwordConfirm: z.string().nonempty('Please confirm your password'),
+    role: z.optional(z.enum(RoleEnumType)),
   }).refine((data) => data.password === data.passwordConfirm, {
     path: ['passwordConfirm'],
     message: 'Passwords do not match',
   }),
 });
 
-export const loginUserSchema = object({
-  body: object({
-    email: string({
-      required_error: 'Email address is required',
-    }).email('Invalid email address'),
-    password: string({
-      required_error: 'Password is required',
-    }).min(8, 'Invalid email or password'),
+export const loginUserSchema = z.object({
+  body: z.object({
+    email: z.email('Invalid email address'),
+    password: z.string().min(8, 'Invalid email or password'),
   }),
 });
 
-export const verifyEmailSchema = object({
-  params: object({
-    verificationCode: string(),
+export const verifyEmailSchema = z.object({
+  params: z.object({
+    verificationCode: z.string(),
   }),
 });
 
+// Types
 export type CreateUserInput = Omit<
-  TypeOf<typeof createUserSchema>['body'],
+  z.infer<typeof createUserSchema>['body'],
   'passwordConfirm'
 >;
 
-export type LoginUserInput = TypeOf<typeof loginUserSchema>['body'];
-export type VerifyEmailInput = TypeOf<typeof verifyEmailSchema>['params'];
+export type LoginUserInput = z.infer<typeof loginUserSchema>['body'];
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>['params'];

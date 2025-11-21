@@ -1,51 +1,50 @@
-// src/schemas/post.schema.ts
-import { object, string, TypeOf, number } from 'zod';
+import { z } from 'zod';
 
-export const createPostSchema = object({
-  body: object({
-    title: string({
-      required_error: 'Title is required',
-    }),
-    content: string({
-      required_error: 'Content is required',
-    }),
-    image: string().optional(),
+// Create Post
+export const createPostSchema = z.object({
+  body: z.object({
+    title: z.string().nonempty({ message: 'Title is required' }),
+    content: z.string().nonempty({ message: 'Content is required' }),
+    image: z.string().optional(),
   }),
 });
 
-const params = {
-  params: object({
-    postId: string(),
-  }),
-};
-
-export const getPostSchema = object({
-  ...params,
+// Params schema for postId
+const paramsSchema = z.object({
+  postId: z.string(),
 });
 
-export const updatePostSchema = object({
-  ...params,
-  body: object({
-    title: string().optional(),
-    content: string().optional(),
-    image: string().optional(),
+// Get Post
+export const getPostSchema = z.object({
+  params: paramsSchema,
+});
+
+// Update Post
+export const updatePostSchema = z.object({
+  params: paramsSchema,
+  body: z.object({
+    title: z.string().optional(),
+    content: z.string().optional(),
+    image: z.string().optional(),
   }),
 });
 
-export const deletePostSchema = object({
-  ...params,
+// Delete Post
+export const deletePostSchema = z.object({
+  params: paramsSchema,
 });
 
 // Feed query params
-export const getFeedSchema = object({
-  query: object({
-    page: number().optional(),
-    limit: number().optional(),
+export const getFeedSchema = z.object({
+  query: z.object({
+    page: z.number().optional(),
+    limit: z.number().optional(),
   }).partial(),
 });
 
-export type CreatePostInput = TypeOf<typeof createPostSchema>['body'];
-export type GetPostInput = TypeOf<typeof getPostSchema>['params'];
-export type UpdatePostInput = TypeOf<typeof updatePostSchema>;
-export type DeletePostInput = TypeOf<typeof deletePostSchema>['params'];
-export type GetFeedQuery = TypeOf<typeof getFeedSchema>['query'];
+// Types
+export type CreatePostInput = z.infer<typeof createPostSchema>['body'];
+export type GetPostInput = z.infer<typeof getPostSchema>['params'];
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
+export type DeletePostInput = z.infer<typeof deletePostSchema>['params'];
+export type GetFeedQuery = z.infer<typeof getFeedSchema>['query'];

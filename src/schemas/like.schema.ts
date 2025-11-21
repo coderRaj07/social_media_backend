@@ -1,13 +1,10 @@
-// src/schemas/like.schema.ts
-import { object, string, TypeOf } from 'zod';
+import { z } from 'zod';
 
-export const toggleLikeSchema = object({
-  body: object({
-    postId: string({
-      required_error: 'postId is required',
-    }),
+export const toggleLikeSchema = z.object({
+  body: z.object({
+    postId: z.string().nonempty({ message: 'postId is required' }),
   }),
 });
 
-export type ToggleLikeInput = TypeOf<typeof toggleLikeSchema>['body'];
-   
+// Type
+export type ToggleLikeInput = z.infer<typeof toggleLikeSchema>['body'];
