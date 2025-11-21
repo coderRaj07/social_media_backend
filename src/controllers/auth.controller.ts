@@ -49,30 +49,66 @@ export const registerUserHandler = async (
 ) => {
   try {
     const { name, password, email } = req.body;
+    const emailLower = email.toLowerCase();
 
+    // 1. Check if user already exists
+    const existingUser = await findUserByEmail({ email: emailLower });
+
+    if (existingUser) {
+      if (!existingUser.verified) {
+        // Resend verification email
+        const { hashedVerificationCode, verificationCode } = User.createVerificationCode();
+        existingUser.verificationCode = hashedVerificationCode;
+        existingUser.name = name; // optionally update name/password
+        existingUser.password = password; // hash will run in @BeforeInsert? might need manual hash
+        await existingUser.save();
+
+        const redirectUrl = `${config.get<string>('origin')}/api/auth/verifyemail/${verificationCode}`;
+
+
+        try {
+          await new Email(existingUser, redirectUrl).sendVerificationCode();
+
+          return res.status(200).json({
+            status: 'success',
+            message: 'An email with a new verification code has been sent to your email',
+          });
+        } catch (emailErr) {
+          existingUser.verificationCode = null;
+          await existingUser.save();
+          return res.status(500).json({
+            status: 'error',
+            message: 'There was an error sending email, please try again',
+          });
+        }
+      } else {
+        return res.status(409).json({
+          status: 'fail',
+          message: 'User with that email already exists',
+        });
+      }
+    }
+
+    // 2. Create new user
     const newUser = await createUser({
       name,
-      email: email.toLowerCase(),
+      email: emailLower,
       password,
     });
 
-    const { hashedVerificationCode, verificationCode } =
-      User.createVerificationCode();
+    const { hashedVerificationCode, verificationCode } = User.createVerificationCode();
     newUser.verificationCode = hashedVerificationCode;
     await newUser.save();
 
-    // Send Verification Email
-    const redirectUrl = `${config.get<string>(
-      'origin'
-    )}/verifyemail/${verificationCode}`;
+    // Send verification email
+    const redirectUrl = `${config.get<string>('origin')}/api/auth/verifyemail/${verificationCode}`;
 
     try {
       await new Email(newUser, redirectUrl).sendVerificationCode();
 
       res.status(201).json({
         status: 'success',
-        message:
-          'An email with a verification code has been sent to your email',
+        message: 'An email with a verification code has been sent to your email',
       });
     } catch (error) {
       newUser.verificationCode = null;
@@ -84,12 +120,6 @@ export const registerUserHandler = async (
       });
     }
   } catch (err: any) {
-    if (err.code === '23505') {
-      return res.status(409).json({
-        status: 'fail',
-        message: 'User with that email already exist',
-      });
-    }
     next(err);
   }
 };

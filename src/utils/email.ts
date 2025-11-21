@@ -18,7 +18,7 @@ export default class Email {
   constructor(public user: User, public url: string) {
     this.firstName = user.name.split(' ')[0];
     this.to = user.email;
-    this.from = `Codevo ${config.get<string>('emailFrom')}`;
+    this.from = `CoderRaj07 ${config.get<string>('emailFrom')}`;
   }
 
   private newTransport() {
