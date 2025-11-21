@@ -21,7 +21,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Rajendra\",\n  \"email\": \"rajendra@example.com\",\n  \"password\": \"pass1234\"\n}"
+							"raw": "{\n  \"name\": \"Pratyush\",\n  \"email\": \"stytusadvertisingsbds@gmail.com\",\n  \"password\": \"password123\",\n  \"passwordConfirm\": \"password123\"\n}\n"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/register",
@@ -48,7 +48,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"rajendra@example.com\",\n  \"password\": \"pass1234\"\n}"
+							"raw": "{\n  \"email\": \"stytusadvertisingsbds@gmail.com\",\n  \"password\": \"password123\"\n}\n"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/login",
@@ -64,32 +64,9 @@
 					"response": []
 				},
 				{
-					"name": "Get Me",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{accessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/auth/me",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"auth",
-								"me"
-							]
-						}
-					},
-					"response": []
-				},
-				{
 					"name": "Logout",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [
 							{
 								"key": "Authorization",
