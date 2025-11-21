@@ -4,8 +4,6 @@ import config from 'config';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import cluster from 'cluster';
-import os from 'os';
 
 import { AppDataSource } from './utils/data-source';
 import AppError from './utils/appError';
@@ -20,11 +18,9 @@ import followRouter from './routes/follow.routes';
 
 import { connectRedis, getRedisClient } from './utils/connectRedis';
 
-const numCpus = os.cpus().length;
-
-const startWorker = async () => {
+const startApp = async () => {
   try {
-    // 1️⃣ Connect Redis (singleton per worker)
+    // 1️⃣ Connect Redis (singleton)
     await connectRedis();
 
     // 2️⃣ Initialize database
@@ -85,25 +81,16 @@ const startWorker = async () => {
       });
     });
 
-    const port = config.get<number>('port');
+    // START SERVER
+    const port = config.get<number>('port') || 4000;
     app.listen(port, () => {
-      console.log(`Worker pid: ${process.pid} started on port: ${port}`);
+      console.log(`Server started with pid: ${process.pid} on port: ${port}`);
     });
   } catch (err) {
-    console.error('Worker startup failed:', err);
+    console.error('App startup failed:', err);
     process.exit(1);
   }
 };
 
-// CLUSTER SETUP
-if (cluster.isPrimary) {
-  console.log(`Primary pid: ${process.pid} is running`);
-  for (let i = 0; i < numCpus; i++) cluster.fork();
-
-  cluster.on('exit', (worker, code, signal) => {
-    console.log(`Worker pid: ${worker.process.pid} died. Restarting...`);
-    cluster.fork();
-  });
-} else {
-  startWorker(); // each worker runs this
-}
+// START
+startApp();
