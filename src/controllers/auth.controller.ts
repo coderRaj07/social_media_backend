@@ -15,7 +15,7 @@ import {
   signTokens,
 } from '../services/user.service';
 import AppError from '../utils/appError';
-import redisClient from '../utils/connectRedis';
+import redisClient, { getRedisClient } from '../utils/connectRedis';
 import { signJwt, verifyJwt } from '../utils/jwt';
 import { User } from '../entities/user.entity';
 import Email from '../utils/email';
@@ -230,7 +230,7 @@ export const refreshAccessTokenHandler = async (
     if (!decoded) {
       return next(new AppError(403, message));
     }
-
+    const redisClient = getRedisClient();
     // Check if user has a valid session
     const session = await redisClient.get(decoded.sub);
 
@@ -282,6 +282,7 @@ export const logoutHandler = async (
     const user = res.locals.user;
 
     if (user) {
+      const redisClient = getRedisCredisClientlient();
       // Delete session cache
       await redisClient.del(`session:${user.id}`);
 

@@ -1,3 +1,4 @@
+// src/utils/connectRedis.ts
 import { createClient } from 'redis';
 import config from 'config';
 
@@ -8,32 +9,56 @@ export const redisConfig = {
   password: config.get<string>('redis.password'),
 };
 
-export const redisClient = createClient({
-  socket: {
-    host: redisConfig.host,
-    port: redisConfig.port,
-  },
-  username: redisConfig.username,
-  password: redisConfig.password,
-});
+// Singleton client
+let redisClient: ReturnType<typeof createClient> | null = null;
+// Track connection state
+let isConnecting = false;
+let isConnected = false;
 
-let isConnected = false; // track connection status
+export const getRedisClient = (): ReturnType<typeof createClient> => {
+  if (!redisClient) throw new Error('Redis client not initialized. Call connectRedis() first.');
+  return redisClient;
+};
 
 export const connectRedis = async () => {
-  if (isConnected) return; // do not reconnect if already connected
+  if (isConnected || isConnecting) return; // already connected or connecting
+
+  isConnecting = true;
+
+  if (!redisClient) {
+    redisClient = createClient({
+      socket: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+      },
+      username: redisConfig.username,
+      password: redisConfig.password,
+    });
+
+    redisClient.on('error', (err) => {
+      console.error('Redis Client Error:', err);
+      isConnected = false;
+      isConnecting = false;
+      // Retry after 5s if connection fails
+      setTimeout(connectRedis, 5000);
+    });
+  }
 
   try {
     await redisClient.connect();
     isConnected = true;
+    isConnecting = false;
     console.log('✅ Redis client connected successfully');
     await redisClient.set('try', 'Hello Welcome to Express with TypeORM');
-  } catch (error) {
-    console.error('Redis connection failed:', error);
-    setTimeout(connectRedis, 5000); // retry safely
+  } catch (err) {
+    console.error('Redis connection failed:', err);
+    isConnected = false;
+    isConnecting = false;
+    setTimeout(connectRedis, 5000);
   }
 };
 
-// call it once at startup
+// Call once at startup
 connectRedis();
 
-export default redisClient;
+export default getRedisClient;

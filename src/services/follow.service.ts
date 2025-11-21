@@ -1,6 +1,6 @@
 import { AppDataSource } from '../utils/data-source';
 import { Follow } from '../entities/follow.entity';
-import redisClient from '../utils/connectRedis';
+import redisClient, { getRedisClient } from '../utils/connectRedis';
 import config from 'config';
 
 const CACHE_EX = config.get<number>('redisCacheExpiresIn') * 60; // 10 mins by now
@@ -16,7 +16,7 @@ export const followUser = async (followerId: string, followingId: string) => {
 
   const follow = repository.create({ followerId, followingId });
   const saved = await repository.save(follow);
-
+  const redisClient = getRedisClient();
   // Invalidate caches
   await redisClient.del(`followers:${followingId}`);
   await redisClient.del(`following:${followerId}`);
@@ -30,7 +30,7 @@ export const unfollowUser = async (followerId: string, followingId: string) => {
   if (!existing) return null;
 
   await repository.remove(existing);
-
+  const redisClient = getRedisClient();
   // Invalidate caches
   await redisClient.del(`followers:${followingId}`);
   await redisClient.del(`following:${followerId}`);
@@ -44,6 +44,7 @@ export const unfollowUser = async (followerId: string, followingId: string) => {
  */
 export const findFollowersIds = async (userId: string): Promise<string[]> => {
   const cacheKey = `followers:${userId}`;
+  const redisClient = getRedisClient();
   const cached = await redisClient.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
@@ -55,6 +56,7 @@ export const findFollowersIds = async (userId: string): Promise<string[]> => {
 };
 
 export const findFollowingIds = async (userId: string): Promise<string[]> => {
+  const redisClient = getRedisClient();
   const cacheKey = `following:${userId}`;
   const cached = await redisClient.get(cacheKey);
   if (cached) return JSON.parse(cached);

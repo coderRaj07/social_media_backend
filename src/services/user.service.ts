@@ -1,7 +1,6 @@
 import config from 'config';
-import { omit } from 'lodash';
 import { User } from '../entities/user.entity';
-import redisClient from '../utils/connectRedis';
+import { getRedisClient } from '../utils/connectRedis';
 import { AppDataSource } from '../utils/data-source';
 import { signJwt } from '../utils/jwt';
 
@@ -10,7 +9,7 @@ const CACHE_EX = config.get<number>('redisCacheExpiresIn') * 60;
 
 export const createUser = async (input: Partial<User>) => {
   const user = await userRepository.save(userRepository.create(input));
-
+  const redisClient = getRedisClient();
   // Invalidate cache for this user
   await redisClient.del(`user:${user.id}`);
   await redisClient.del(`user:email:${user.email}`);
@@ -20,6 +19,7 @@ export const createUser = async (input: Partial<User>) => {
 
 export const findUserByEmail = async ({ email }: { email: string }) => {
   const cacheKey = `user:email:${email}`;
+  const redisClient = getRedisClient();
   const cached = await redisClient.get(cacheKey);
   if (cached) return JSON.parse(cached);
   const user = await userRepository.findOneBy({ email });
@@ -30,6 +30,7 @@ export const findUserByEmail = async ({ email }: { email: string }) => {
 
 export const findUserById = async (userId: string) => {
   const cacheKey = `user:${userId}`;
+  const redisClient = getRedisClient();
   const cached = await redisClient.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
@@ -43,6 +44,7 @@ export const findUser = async (query: Object) => {
 };
 
 export const signTokens = async (user: User) => {
+  const redisClient = getRedisClient();
   // 1. Create Session
   redisClient.set(user.id, JSON.stringify(user), {
     EX: config.get<number>('redisCacheExpiresIn') * 60,
@@ -61,6 +63,7 @@ export const signTokens = async (user: User) => {
 };
 
 export const invalidateUserCache = async (user: User) => {
+  const redisClient = getRedisClient();
   await redisClient.del(`user:${user.id}`);
   await redisClient.del(`user:email:${user.email}`);
 };

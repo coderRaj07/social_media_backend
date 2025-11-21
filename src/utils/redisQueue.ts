@@ -1,5 +1,5 @@
 import { Worker, Queue } from 'bullmq';
-import { redisClient, redisConfig } from './connectRedis';
+import getRedisClient, { redisConfig } from './connectRedis';
 import { AppDataSource } from './data-source';
 import { Post } from '../entities/post.entity';
 
@@ -29,6 +29,7 @@ export const feedWorker = new Worker(
     // Push postId to each follower's feed in Redis
     for (const followerId of followers) {
       const key = `feed:${followerId}`;
+      const redisClient = getRedisClient();
       await redisClient.lPush(key, post.id); // always string
       await redisClient.lTrim(key, 0, 99); // keep latest 100 posts
     }

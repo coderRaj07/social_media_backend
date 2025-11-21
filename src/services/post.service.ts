@@ -2,7 +2,7 @@ import { AppDataSource } from '../utils/data-source';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { FindOptionsWhere, In } from 'typeorm';
-import redisClient from '../utils/connectRedis';
+import redisClient, { getRedisClient } from '../utils/connectRedis';
 import config from 'config';
 import { feedQueue } from '../utils/redisQueue';
 import { findFollowersIds } from './follow.service';
@@ -31,6 +31,7 @@ export const createPost = async (input: Partial<Post>, user: User) => {
 
 export const getPost = async (id: string) => {
   const cacheKey = `post:${id}`;
+  const redisClient = getRedisClient();
   const cached = await redisClient.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
@@ -70,7 +71,7 @@ export const getFeedForUserIds = async (userId: string, page = 1, limit = 20) =>
   const start = (page - 1) * limit;
   const end = start + limit - 1;
   const cacheKey = `feed:${userId}`;
-
+  const redisClient = getRedisClient();
   // Fetch from Redis (may return loose types)
   const rawPostIds = await redisClient.lRange(cacheKey, start, end);
 
@@ -118,6 +119,7 @@ export const getFeedForUserIds = async (userId: string, page = 1, limit = 20) =>
 export const getPostsByUserId = async (userId: string, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
   const cacheKey = `userPosts:${userId}:page:${page}:limit:${limit}`;
+  const redisClient = getRedisClient();
   const cached = await redisClient.get(cacheKey);
 
   if (cached) return JSON.parse(cached);
