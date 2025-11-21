@@ -145,12 +145,15 @@ export const getFeedHandler = async (req: Request, res: Response, next: NextFunc
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
 
-    const followerId = res.locals.user.id;
-    const followingIds = await findFollowersIds(followerId); // returns list of userIds current user follows
-    const userIds = Array.from(new Set([followerId, ...followingIds]));
+    const userId = res.locals.user.id; // single user
+    console.log({userId})
+    const feed = await getFeedForUserIds(userId, page, limit);
 
-    const feed = await getFeedForUserIds(userIds, page, limit);
-    res.status(200).json({ status: 'success', results: feed.length, data: { feed } });
+    res.status(200).json({
+      status: 'success',
+      results: feed.length,
+      data: { feed },
+    });
   } catch (err) {
     next(err);
   }

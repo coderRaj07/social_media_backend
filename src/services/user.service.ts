@@ -59,3 +59,8 @@ export const signTokens = async (user: User) => {
 
   return { access_token, refresh_token };
 };
+
+export const invalidateUserCache = async (user: User) => {
+  await redisClient.del(`user:${user.id}`);
+  await redisClient.del(`user:email:${user.email}`);
+};

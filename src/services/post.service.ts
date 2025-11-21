@@ -1,19 +1,31 @@
 import { AppDataSource } from '../utils/data-source';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
-import { FindOptionsWhere } from 'typeorm';
+import { FindOptionsWhere, In } from 'typeorm';
 import redisClient from '../utils/connectRedis';
 import config from 'config';
+import { feedQueue } from '../utils/redisQueue';
+import { findFollowersIds } from './follow.service';
 
 const CACHE_EX = config.get<number>('redisCacheExpiresIn') * 60;
 
 export const createPost = async (input: Partial<Post>, user: User) => {
   const repo = AppDataSource.getRepository(Post);
-  const post = repo.create({ ...input, user, userId: user.id });
+  const post = repo.create({
+    ...input,
+    user,
+    userId: user.id,
+  });
   const savedPost = await repo.save(post);
 
-  // Invalidate user feed cache
-  await redisClient.del(`userPosts:${user.id}:*`);
+  // Push feed update to queue for all followers
+  const followers = await findFollowersIds(user.id);
+  await feedQueue.add('feedGeneration', {
+    postId: savedPost.id,
+    userId: user.id,
+    followers,
+  });
+
   return savedPost;
 };
 
@@ -52,37 +64,66 @@ export const findPosts = async (
 };
 
 /**
- * Feed query: accepts list of userIds and returns posts paginated
+ * Queue-enabled feed: paginated posts for a user
  */
-export const getFeedForUserIds = async (userIds: string[], page = 1, limit = 20) => {
+export const getFeedForUserIds = async (userId: string, page = 1, limit = 20) => {
+  const start = (page - 1) * limit;
+  const end = start + limit - 1;
+  const cacheKey = `feed:${userId}`;
+
+  // Fetch from Redis (may return loose types)
+  const rawPostIds = await redisClient.lRange(cacheKey, start, end);
+
+  // Filter to only strings
+  const postIds: string[] = Array.isArray(rawPostIds)
+    ? rawPostIds.filter((id): id is string => typeof id === 'string')
+    : [];
+
+  console.log(postIds)
+  // inside getFeedForUserIds
+  if (postIds.length) {
+    const posts = await AppDataSource.getRepository(Post).findBy({
+      id: In(postIds),
+    });
+
+    const postMap = new Map(posts.map(p => [p.id, p]));
+    console.log(postMap)
+    return postIds.map(id => postMap.get(id)).filter(Boolean);
+  }
+
+  // Fallback DB query
+  const followingIds = await findFollowersIds(userId);
+  if (followingIds.length === 0) {
+    return []; // no posts to fetch
+  }
   const skip = (page - 1) * limit;
-  const cacheKey = `feed:${userIds.join(',')}:page:${page}:limit:${limit}`;
-  const cached = await redisClient.get(cacheKey);
-  if (cached) return JSON.parse(cached);
+  const posts = await AppDataSource.getRepository(Post).find({
+    where: { userId: In(followingIds.length ? followingIds : ['']) },
+    relations: ['user', 'comments', 'likes'],
+    order: { created_at: 'DESC' },
+    skip,
+    take: limit,
+  });
 
-  const repo = AppDataSource.getRepository(Post);
-  const posts = await repo
-    .createQueryBuilder('post')
-    .leftJoinAndSelect('post.user', 'user')
-    .leftJoinAndSelect('post.comments', 'comments')
-    .leftJoinAndSelect('post.likes', 'likes')
-    .where('post.userId IN (:...userIds)', { userIds })
-    .orderBy('post.created_at', 'DESC')
-    .skip(skip)
-    .take(limit)
-    .getMany();
+  if (page === 1 && posts.length) {
+    const ids = posts.map(p => p.id);
+    await redisClient.rpush(cacheKey, ...ids);
+    await redisClient.ltrim(cacheKey, 0, 99);
+  }
 
-  await redisClient.set(cacheKey, JSON.stringify(posts), { EX: CACHE_EX });
   return posts;
 };
+
 
 export const getPostsByUserId = async (userId: string, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
   const cacheKey = `userPosts:${userId}:page:${page}:limit:${limit}`;
   const cached = await redisClient.get(cacheKey);
+
   if (cached) return JSON.parse(cached);
 
   const posts = await findPosts({ userId } as FindOptionsWhere<Post>, { created_at: 'DESC' }, { skip, take: limit });
   await redisClient.set(cacheKey, JSON.stringify(posts), { EX: CACHE_EX });
+
   return posts;
 };

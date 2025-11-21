@@ -11,6 +11,7 @@ import {
   findUser,
   findUserByEmail,
   findUserById,
+  invalidateUserCache,
   signTokens,
 } from '../services/user.service';
 import AppError from '../utils/appError';
@@ -57,30 +58,27 @@ export const registerUserHandler = async (
     if (existingUser) {
       if (!existingUser.verified) {
         // Resend verification email
-        const { hashedVerificationCode, verificationCode } = User.createVerificationCode();
+        const { hashedVerificationCode, verificationCode } =
+          User.createVerificationCode();
         existingUser.verificationCode = hashedVerificationCode;
-        existingUser.name = name; // optionally update name/password
-        existingUser.password = password; // hash will run in @BeforeInsert? might need manual hash
+        existingUser.name = name;
+        existingUser.password = password; // hash handled in entity
         await existingUser.save();
 
-        const redirectUrl = `${config.get<string>('origin')}/api/auth/verifyemail/${verificationCode}`;
+        // Invalidate cache
+        await invalidateUserCache(existingUser);
 
+        const redirectUrl = `${config.get<string>(
+          'origin'
+        )}/api/auth/verifyemail/${verificationCode}`;
 
-        try {
-          await new Email(existingUser, redirectUrl).sendVerificationCode();
+        await new Email(existingUser, redirectUrl).sendVerificationCode();
 
-          return res.status(200).json({
-            status: 'success',
-            message: 'An email with a new verification code has been sent to your email',
-          });
-        } catch (emailErr) {
-          existingUser.verificationCode = null;
-          await existingUser.save();
-          return res.status(500).json({
-            status: 'error',
-            message: 'There was an error sending email, please try again',
-          });
-        }
+        return res.status(200).json({
+          status: 'success',
+          message:
+            'An email with a new verification code has been sent to your email',
+        });
       } else {
         return res.status(409).json({
           status: 'fail',
@@ -96,29 +94,25 @@ export const registerUserHandler = async (
       password,
     });
 
-    const { hashedVerificationCode, verificationCode } = User.createVerificationCode();
+    const { hashedVerificationCode, verificationCode } =
+      User.createVerificationCode();
     newUser.verificationCode = hashedVerificationCode;
     await newUser.save();
 
-    // Send verification email
-    const redirectUrl = `${config.get<string>('origin')}/api/auth/verifyemail/${verificationCode}`;
+    // Invalidate cache
+    await invalidateUserCache(newUser);
 
-    try {
-      await new Email(newUser, redirectUrl).sendVerificationCode();
+    // 3. Send verification email
+    const redirectUrl = `${config.get<string>(
+      'origin'
+    )}/api/auth/verifyemail/${verificationCode}`;
 
-      res.status(201).json({
-        status: 'success',
-        message: 'An email with a verification code has been sent to your email',
-      });
-    } catch (error) {
-      newUser.verificationCode = null;
-      await newUser.save();
+    await new Email(newUser, redirectUrl).sendVerificationCode();
 
-      return res.status(500).json({
-        status: 'error',
-        message: 'There was an error sending email, please try again',
-      });
-    }
+    res.status(201).json({
+      status: 'success',
+      message: 'An email with a verification code has been sent to your email',
+    });
   } catch (err: any) {
     next(err);
   }
@@ -131,32 +125,33 @@ export const loginUserHandler = async (
 ) => {
   try {
     const { email, password } = req.body;
+
+    // 1. Fetch user (from cache or DB)
     const user = await findUserByEmail({ email });
 
-    // 1. Check if user exist
     if (!user) {
       return next(new AppError(400, 'Invalid email or password'));
     }
 
-    // 2.Check if user is verified
+    // 2. Check if verified
     if (!user.verified) {
       return next(
         new AppError(
           401,
-          'You are not verified, check your email to verify your account'
+          'You are not verified. Check your email to verify your account'
         )
       );
     }
 
-    //3. Check if password is valid
+    // 3. Check password
     if (!(await User.comparePasswords(password, user.password))) {
       return next(new AppError(400, 'Invalid email or password'));
     }
 
-    // 4. Sign Access and Refresh Tokens
+    // 4. Sign access & refresh tokens, save session separately
     const { access_token, refresh_token } = await signTokens(user);
 
-    // 5. Add Cookies
+    // 5. Add cookies
     res.cookie('access_token', access_token, accessTokenCookieOptions);
     res.cookie('refresh_token', refresh_token, refreshTokenCookieOptions);
     res.cookie('logged_in', true, {
@@ -164,7 +159,10 @@ export const loginUserHandler = async (
       httpOnly: false,
     });
 
-    // 6. Send response
+    // 6. Invalidate user cache to ensure fresh data next time
+    await invalidateUserCache(user);
+
+    // 7. Send response
     res.status(200).json({
       status: 'success',
       access_token,
@@ -173,6 +171,7 @@ export const loginUserHandler = async (
     next(err);
   }
 };
+
 
 export const verifyEmailHandler = async (
   req: Request<VerifyEmailInput>,
@@ -195,9 +194,13 @@ export const verifyEmailHandler = async (
     user.verificationCode = null;
     await user.save();
 
+    // Invalidate Redis cache
+    await invalidateUserCache(user);
+
     res.status(200).json({
       status: 'success',
-      message: 'Email verified successfully, Now you can login properly without any issue',
+      message:
+        'Email verified successfully. You can now log in without issues.',
     });
   } catch (err: any) {
     next(err);
@@ -278,11 +281,20 @@ export const logoutHandler = async (
   try {
     const user = res.locals.user;
 
-    await redisClient.del(user.id);
+    if (user) {
+      // Delete session cache
+      await redisClient.del(`session:${user.id}`);
+
+      // Optional: also invalidate user cache
+      await invalidateUserCache(user);
+    }
+
+    // Clear cookies
     logout(res);
 
     res.status(200).json({
       status: 'success',
+      message: 'Logged out successfully',
     });
   } catch (err: any) {
     next(err);

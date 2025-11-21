@@ -3,7 +3,7 @@ import { Follow } from '../entities/follow.entity';
 import redisClient from '../utils/connectRedis';
 import config from 'config';
 
-const CACHE_EX = config.get<number>('redisCacheExpiresIn') * 60;
+const CACHE_EX = config.get<number>('redisCacheExpiresIn') * 60; // 10 mins by now
 const repo = () => AppDataSource.getRepository(Follow);
 
 export const followUser = async (followerId: string, followingId: string) => {

@@ -1,14 +1,14 @@
 import { createClient } from 'redis';
 import config from 'config';
 
-const redisConfig = {
+export const redisConfig = {
   host: config.get<string>('redis.host'),
   port: Number(config.get<string>('redis.port')),
   username: config.get<string>('redis.username'),
   password: config.get<string>('redis.password'),
 };
 
-const redisClient = createClient({
+export const redisClient = createClient({
   socket: {
     host: redisConfig.host,
     port: redisConfig.port,
@@ -17,13 +17,13 @@ const redisClient = createClient({
   password: redisConfig.password,
 });
 
-const connectRedis = async () => {
+export const connectRedis = async () => {
   try {
     await redisClient.connect();
-    console.log('Redis client connect successfully');
-    redisClient.set('try', 'Hello Welcome to Express with TypeORM');
+    console.log('Redis client connected successfully');
+    await redisClient.set('try', 'Hello Welcome to Express with TypeORM');
   } catch (error) {
-    console.log(error);
+    console.error(error);
     setTimeout(connectRedis, 5000);
   }
 };
