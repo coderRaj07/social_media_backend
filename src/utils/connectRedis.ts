@@ -17,17 +17,23 @@ export const redisClient = createClient({
   password: redisConfig.password,
 });
 
+let isConnected = false; // track connection status
+
 export const connectRedis = async () => {
+  if (isConnected) return; // do not reconnect if already connected
+
   try {
     await redisClient.connect();
-    console.log('Redis client connected successfully');
+    isConnected = true;
+    console.log('✅ Redis client connected successfully');
     await redisClient.set('try', 'Hello Welcome to Express with TypeORM');
   } catch (error) {
-    console.error(error);
-    setTimeout(connectRedis, 5000);
+    console.error('Redis connection failed:', error);
+    setTimeout(connectRedis, 5000); // retry safely
   }
 };
 
+// call it once at startup
 connectRedis();
 
 export default redisClient;
