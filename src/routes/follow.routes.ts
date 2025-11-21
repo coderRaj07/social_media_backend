@@ -16,8 +16,8 @@ router.post('/:userId', deserializeUser, requireUser, followUserHandler);
 router.delete('/:userId', deserializeUser, requireUser, unfollowUserHandler);
 
 // public endpoints
-router.get('/followers/:userId', getFollowersHandler);
-router.get('/following/:userId', getFollowingHandler);
+router.get('/getfollowers/:userId', getFollowersHandler);
+router.get('/getfollowing/:userId', getFollowingHandler);
 
 // optional helper to check if current user follows userId
 router.get('/is-following/:userId', deserializeUser, requireUser, isFollowingHandler);
