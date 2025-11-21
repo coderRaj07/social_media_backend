@@ -1,5 +1,5 @@
 export default {
-  origin: 'http://localhost:4000',
+  origin: 'https://social-media-backend-sond.onrender.com',
   accessTokenExpiresIn: 15,
   refreshTokenExpiresIn: 60,
   redisCacheExpiresIn: 60,
