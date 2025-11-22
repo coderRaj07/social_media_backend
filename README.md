@@ -39,44 +39,56 @@ User 1---* Follow (as follower/following)
 Post 1---* Comment
 Post 1---* Like
 ```
-
 ---
 
 ## **2. Scalability & Performance Strategies**
 
-1. **Indexing**
+### **1. Indexing**
 
-   * Frequently queried fields are indexed:
+* Frequently queried fields are indexed:
 
-     * `userId` in posts, comments, likes
-     * `followerId` / `followingId` in follows
-     * `email` and `verificationCode` in users
-   * Speeds up feed generation, post queries, and follower lookups.
+  * `userId` in posts, comments, likes
+  * `followerId` / `followingId` in follows
+  * `email` and `verificationCode` in users
+* These indexes significantly reduce query times for:
 
-2. **Pagination**
+  * Feed generation
+  * Follower lookups
+  * User-specific post or comment fetches
 
-   * Feed queries, user posts, and comments use **skip/take**.
-   * Prevents fetching large datasets at once.
 
- 3. **Caching (Redis)**
+### **2. Pagination**
 
-* **User sessions**: stores basic user info.
-* **Feeds**: stores latest 100 posts per user.
-* **Posts by user**: caches paginated results.
-* Cache expiry: configurable (e.g., 60 minutes).
+* All large-list endpoints use pagination (`skip/take`):
 
- 4. **Queueing (BullMQ)**
+  * User feeds
+  * User posts
+  * Comments
+* Prevents loading large datasets and ensures stable performance even as data grows.
+* Enables scalable, predictable query load under high traffic.
 
-* **Feed generation** is asynchronous and follows the **Observer / Subscriber pattern**:
 
-  * **Publisher (Observable)**: When a user creates a post, it **notifies the system** via a queue job.
-  * **Subscribers**: Followers of the user act as **subscribers**; the worker processes the job and updates each follower’s feed cache in Redis.
+### **3. Caching (Redis)**
 
+* Redis is used to reduce database load and speed up responses:
+
+  * **User sessions**: cached for fast authentication checks.
+  * **Feeds**: each user stores their latest 100 post IDs.
+  * **Posts by user**: paginated results cached for quick retrieval.
+* Cache expiry is configurable (commonly 30–60 minutes).
+* Reduces repetitive database reads and improves response times.
+
+### **4. Queueing (BullMQ)**
+
+* Feed generation is **asynchronous** and follows the **Observer / Subscriber pattern**:
+
+  * **Observable (Publisher)**: when a user creates a post, a job is published to the queue.
+  * **Subscribers**: the followers are implicit subscribers; the worker updates each follower’s feed cache in Redis.
 * Benefits:
 
-  * Decouples heavy feed writes from API requests.
-  * Supports horizontal scaling by adding more workers.
-  * Makes feed updates reactive and event-driven (new posts automatically propagate to followers).
+  * Offloads heavy feed fan-out work from the API request.
+  * Allows horizontal scaling by increasing the number of workers.
+  * Makes feed updates reactive, event-driven, and fast even for high follower counts.
 
 ---
 
