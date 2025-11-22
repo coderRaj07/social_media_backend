@@ -58,23 +58,25 @@ Post 1---* Like
    * Feed queries, user posts, and comments use **skip/take**.
    * Prevents fetching large datasets at once.
 
-3. **Caching (Redis)**
+### 3. **Caching (Redis)**
 
-   * **User sessions**: stores basic user info.
-   * **Feeds**: stores latest 100 posts per user.
-   * **Posts by user**: caches paginated results.
-   * Cache expiry: configurable (e.g., 30 minutes).
+* **User sessions**: stores basic user info.
+* **Feeds**: stores latest 100 posts per user.
+* **Posts by user**: caches paginated results.
+* Cache expiry: configurable (e.g., 60 minutes).
 
-4. **Queueing (BullMQ)**
+### 4. **Queueing (BullMQ)**
 
-   * **Feed generation** is asynchronous:
+* **Feed generation** is asynchronous and follows the **Observer / Subscriber pattern**:
 
-     * When a user posts, job is queued for all followers.
-     * Worker pushes post IDs to followers’ feed caches in Redis.
-   * Benefits:
+  * **Publisher (Observable)**: When a user creates a post, it **notifies the system** via a queue job.
+  * **Subscribers**: Followers of the user act as **subscribers**; the worker processes the job and updates each follower’s feed cache in Redis.
 
-     * Decouples heavy feed writes from API request.
-     * Supports horizontal scaling by adding workers.
+* Benefits:
+
+  * Decouples heavy feed writes from API requests.
+  * Supports horizontal scaling by adding more workers.
+  * Makes feed updates reactive and event-driven (new posts automatically propagate to followers).
 
 ---
 
@@ -131,10 +133,179 @@ Post 1---* Like
 5. **Compression**
 
    * Compress feed JSON in Redis for memory efficiency.
+6. **Image Uploads**
 
+   * Currently, only image links are stored in the database and images are uploaded via Multer (No endpoints exposed for this right now as an MVP).
+   * **For production scale, upgrade to S3 presigned URLs to allow direct uploads from clients, reducing server load and DB storage.**
+     
 ---
 
-## **6. Summary**
+## **6. Features & User Flow**
+
+### **User Flow**
+
+1. **User Registration**
+
+   * User registers via `/auth/register`.
+   * A **verification email** is sent with a unique link.
+   * User clicks the link → account gets **verified**.
+2. **Login**
+
+   * Only **verified users** can log in via `/auth/login`.
+   * JWT tokens (access + refresh) are returned.
+3. **Post Creation & Feed**
+
+   * Verified users create posts via `/posts`.
+   * Followers’ feeds are updated asynchronously using the **queue system**.
+4. **Interactions**
+
+   * Users can comment (`/comments`), like (`/like/:postId`), follow/unfollow (`/follow/:userId`).
+5. **Feed Retrieval**
+
+   * `/posts/feed` returns latest posts from followed users with **pagination**.
+6. **Public APIs**
+
+   * Fetch followers `/follow/getfollowers/:userId` and following `/follow/getfollowing/:userId`.
+
+### **APIs (Base URL: `https://social-media-backend-sond.onrender.com/api`)**
+
+#### **Auth**
+
+* **Register**
+
+```json
+POST /auth/register
+{
+  "name": "Rajendra",
+  "email": "rajendra123@gmail.com",
+  "password": "password123",
+  "passwordConfirm": "password123"
+}
+```
+
+> **Note:** Verification email is sent upon registration. which will redirect to a link 👇
+
+* **Verify Email**
+
+```http
+GET /auth/verifyemail?/{{verificationToken}}
+```
+
+* **Login**
+
+```json
+POST /auth/login
+{
+  "email": "rajendra123@gmail.com",
+  "password": "password123"
+}
+```
+
+* **Logout**
+
+```http
+GET /auth/logout
+Authorization: Bearer {{accessToken}}
+```
+
+#### **Posts**
+
+* **Create Post**
+
+```json
+POST /posts
+Authorization: Bearer {{accessToken}}
+{
+  "title": "My 3rd Post",
+  "content": "Hello World !!"
+}
+```
+
+* **Get Post by ID**
+
+```http
+GET /posts/{{postId}}
+Authorization: Bearer {{accessToken}}
+```
+
+* **Get My Posts**
+
+```http
+GET /posts/me?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+```
+
+* **Get Feed**
+
+```http
+GET /posts/feed?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+```
+
+#### **Comments**
+
+* **Add Comment**
+
+```json
+POST /comments
+Authorization: Bearer {{accessToken}}
+{
+  "postId": "{{postId}}",
+  "text": "Great Post!"
+}
+```
+
+* **Delete Comment**
+
+```http
+DELETE /comments/{{commentId}}
+Authorization: Bearer {{accessToken}}
+```
+
+#### **Likes**
+
+* **Toggle Like**
+
+```json
+POST /like/{{postId}}
+Authorization: Bearer {{accessToken}}
+{
+  "postId": "{{postId}}"
+}
+```
+
+#### **Follow**
+
+* **Follow User**
+
+```http
+POST /follow/{{userId}}
+Authorization: Bearer {{accessToken}}
+```
+
+* **Unfollow User**
+
+```http
+DELETE /follow/{{userId}}
+Authorization: Bearer {{accessToken}}
+```
+
+#### **Public**
+
+* **Get Followers**
+
+```http
+GET /follow/getfollowers/{{userId}}
+```
+
+* **Get Following**
+
+```http
+GET /follow/getfollowing/{{userId}}
+```
+---
+
+## **7. Summary**
 
 The system is **scalable and production-ready** with:
 
@@ -146,4 +317,3 @@ The system is **scalable and production-ready** with:
 **Current limitations** are mostly due to **free-tier Redis/NeonDB resources**, which can handle small-scale testing (~1–2 K active users) but need upgrading for production-scale.
 
 ---
-
