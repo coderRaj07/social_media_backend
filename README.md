@@ -200,7 +200,7 @@ POST /auth/register
 * **Verify Email**
 
 ```http
-GET /auth/verifyemail?/{{verificationToken}}
+GET /auth/verifyemail/{{verificationToken}}
 ```
 
 * **Login**
