@@ -42,7 +42,7 @@ Post 1---* Like
 
 ---
 
-## **2. 2. Scalability & Performance Strategies**
+## **2. Scalability & Performance Strategies**
 
 1. **Indexing**
 
