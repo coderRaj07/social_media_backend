@@ -42,7 +42,7 @@ Post 1---* Like
 
 ---
 
-## **2. Optimizations**
+## **2. 2. Scalability & Performance Strategies**
 
 1. **Indexing**
 
@@ -58,14 +58,14 @@ Post 1---* Like
    * Feed queries, user posts, and comments use **skip/take**.
    * Prevents fetching large datasets at once.
 
-### 3. **Caching (Redis)**
+ 3. **Caching (Redis)**
 
 * **User sessions**: stores basic user info.
 * **Feeds**: stores latest 100 posts per user.
 * **Posts by user**: caches paginated results.
 * Cache expiry: configurable (e.g., 60 minutes).
 
-### 4. **Queueing (BullMQ)**
+ 4. **Queueing (BullMQ)**
 
 * **Feed generation** is asynchronous and follows the **Observer / Subscriber pattern**:
 
