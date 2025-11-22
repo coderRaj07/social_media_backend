@@ -3,7 +3,8 @@
 		"_postman_id": "d1012d48-605c-47b9-a28f-e484383f0ed4",
 		"name": "Social Media API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "34426322"
+		"_exporter_id": "34426322",
+		"_collection_link": "https://brandie-4849.postman.co/workspace/a48593e8-97fb-4078-80b6-302408119479/collection/34426322-d1012d48-605c-47b9-a28f-e484383f0ed4?action=share&source=collection_link&creator=34426322"
 	},
 	"item": [
 		{
@@ -21,7 +22,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Pratyush\",\n  \"email\": \"stytusadvertisingsbds@gmail.com\",\n  \"password\": \"password123\",\n  \"passwordConfirm\": \"password123\"\n}\n"
+							"raw": "{\n  \"name\": \"Pratyush\",\n  \"email\": \"rajendrabisoi23@gmail.com\",\n  \"password\": \"password123\",\n  \"passwordConfirm\": \"password123\"\n}\n"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/register",
@@ -107,7 +108,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"title\": \"My First Post\",\n  \"content\": \"Hello World!\"\n}"
+							"raw": "{\n  \"title\": \"My 3rd Post\",\n  \"content\": \"Hello World !!\"\n}\n"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/posts",
@@ -188,11 +189,12 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/feed?page=1&limit=10",
+							"raw": "{{baseUrl}}/posts/feed?page=1&limit=10",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
+								"posts",
 								"feed"
 							],
 							"query": [
@@ -291,14 +293,13 @@
 							"raw": "{\n  \"postId\": \"{{postId}}\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/posts/{{postId}}/like",
+							"raw": "{{baseUrl}}/like/{{postId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"posts",
-								"{{postId}}",
-								"like"
+								"like",
+								"{{postId}}"
 							]
 						}
 					},
@@ -366,12 +367,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/followers/{{userId}}",
+							"raw": "{{baseUrl}}/follow/getfollowers/{{userId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"followers",
+								"follow",
+								"getfollowers",
 								"{{userId}}"
 							]
 						}
@@ -384,12 +386,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/following/{{userId}}",
+							"raw": "{{baseUrl}}/follow/getfollowing/{{userId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"following",
+								"follow",
+								"getfollowing",
 								"{{userId}}"
 							]
 						}
